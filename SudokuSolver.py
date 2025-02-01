@@ -11,6 +11,7 @@ def main():
     ui.setupUi(window)  # Setup the UI for the window
 
     window.show()  # Show the window
+    window.setFixedSize(window.size()) # Fix the window size
 
     ui.solveButton.clicked.connect(ui.solve_sudoku)
     ui.clearButton.clicked.connect(ui.clear_sudoku)
