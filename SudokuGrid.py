@@ -139,20 +139,90 @@ class Ui_SudokuGrid(object):
         """
         Stops the animation and updates the grid with the solved values.
 
-        This method is called after the solving algorithm completes. It stops the timer, updates the grid
-        with the solution, and displays a message box indicating that the Sudoku puzzle is solved.
-
-        Args:
-        - grid_values: A 2D list representing the solved Sudoku grid.
+        This method stops the solving animation and applies a ripple effect
+        by changing the background color of the center subgrid before displaying the solution.
         """
-        # Stop the animation first
+        # Stop the animation timer
         self.timer.stop()
 
         # Update the grid with the solved values
         self.update_grid_with_solution(grid_values)
 
-        # Show the solution message box
-        QtWidgets.QMessageBox.information(None, "Success", "Sudoku Solved!")
+        # Start the ripple animation effect from the center subgrid
+        self.start_ripple_effect()
+
+    def start_ripple_effect(self):
+        """
+        Starts a ripple animation effect beginning at the center cell (the 41st square)
+        and expanding outward in concentric rings. The effect is staggered by one phase:
+        when the center cell is in a later phase, its neighbors are one phase behind.
+        
+        Each cell follows a 4-phase sequence:
+        Phase 0: Light green (#a8f0a2) and font size 13
+        Phase 1: Dark green (#4caf50) and font size 14
+        Phase 2: Light green (#a8f0a2) and font size 13
+        Phase 3: Reset to original style and font size 12
+        """
+        center = 4
+        layers = {}
+        for i in range(9):
+            for j in range(9):
+                d = max(abs(i - center), abs(j - center))
+                layers.setdefault(d, []).append((i, j))
+        
+        # Create a sorted list of layers (layer 0 is the center, layer 1 its neighbors, etc.)
+        ripple_layers = [layers[d] for d in sorted(layers.keys())]
+        
+        phase_delay = 100
+        
+        # Define the phase sequence as tuples: (phase offset, color, font size)
+        # When color is None the cell resets.
+        color_sequence = [
+            (0, '#a8f0a2', 16),  # Phase 0: Light green, font size 13
+            (1, '#4caf50', 20),  # Phase 1: Dark green, font size 14
+            (2, '#a8f0a2', 16),  # Phase 2: Light green, font size 13
+            (3, None, 12)       # Phase 3: Reset to original style and font size 12
+        ]
+        
+        # Schedule the animation for each layer with an offset of one phase per layer.
+        for layer_index, cells in enumerate(ripple_layers):
+            for phase_offset, color, font_size in color_sequence:
+                # Calculate the delay as the sum of the layer offset and the phase offset.
+                delay = (layer_index + phase_offset) * phase_delay
+                # Use lambda defaults to capture the current values of cells, color, and font_size.
+                QtCore.QTimer.singleShot(
+                    delay,
+                    lambda cells=cells, color=color, font_size=font_size: self.apply_ripple(cells, color, font_size)
+                )
+
+
+    def apply_ripple(self, cells, color, font_size):
+        """
+        Applies a given background color and font size to a list of cells.
+        If color is None, resets each cell to its original style and font size (12).
+        
+        Args:
+        - cells (list of tuples): List of (row, col) pairs for the cells to update.
+        - color (str or None): The background color to apply (e.g., '#a8f0a2'). If None, the cell style is reset.
+        - font_size (int): The font size to set.
+        """
+        for i, j in cells:
+            if color is None:
+                # Reset to the original style stored during setup.
+                self.cells[i][j].setStyleSheet(self.initial_styles[i][j])
+                self.cells[i][j].setFont(QtGui.QFont("Arial", 12))
+            else:
+                # Apply the new background color and font size.
+                # Append the original style for borders, etc.
+                new_style = f"background-color: {color}; font-size: {font_size}pt;" + self.initial_styles[i][j]
+                self.cells[i][j].setStyleSheet(new_style)
+                
+                # Also update the cell's font explicitly.
+                font = self.cells[i][j].font()
+                font.setPointSize(font_size)
+                self.cells[i][j].setFont(font)
+
+
 
     def update_grid_with_solution(self, grid_values):
         """
